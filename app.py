@@ -1,7 +1,7 @@
-import random
-import os
+from actions.merkley import mint_nft, bridge_nft, init_web3
 from utils import load_files, get_mint_id, count_accounts, get_possible_chains
-from blockchain import mint_nft, bridge_nft, init_web3
+import os
+import random
 
 # Load necessary data
 hNFT_addresses, hFT_addresses, domains, alchemy_url_list, hNFT_abi, hFT_abi = load_files()

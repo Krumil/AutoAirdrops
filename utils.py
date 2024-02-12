@@ -45,8 +45,8 @@ def load_files():
     hNFT_addresses = json.load(open('hNFT-addresses.json'))
     hFT_addresses = json.load(open('hFT-addresses.json'))
     domains = json.load(open('domains.json'))
-    hNFT_abi = json.load(open('hNFT-abi.json'))
-    hFT_abi = json.load(open('hFT-abi.json'))
+    hNFT_abi = json.load(open('abi/hNFT-abi.json'))
+    hFT_abi = json.load(open('abi/hFT-abi.json'))
     
     networks = get_possible_chains()
     alchemy_url_list = {chain: os.getenv(f'{chain.upper()}_ALCHEMY_URL') for chain in networks}
