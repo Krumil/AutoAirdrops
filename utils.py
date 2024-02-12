@@ -1,6 +1,8 @@
 import json
 import os 
 import dotenv
+import random
+from web3 import Web3
 
 dotenv.load_dotenv()
 
@@ -8,7 +10,6 @@ def get_possible_chains():
 	return ['arbitrum','base', 'optimism', 'polygon_zk']  
 	# return ['arbitrum','base', 'optimism', 'polygon_zk', 'scroll']  
 
-# Function to count the number of account entries in the .env
 def count_accounts():
     count = 0
     while True:
@@ -20,42 +21,82 @@ def count_accounts():
             break
     return count
 
+def get_accounts():
+	num_accounts = count_accounts()
+	accounts = [{
+		'address': os.getenv(f'ADDRESS_{i+1}'),
+		'private_key': os.getenv(f'PRIVATE_KEY_{i+1}')
+	} for i in range(num_accounts)]
+	return accounts
 
 def get_mint_id(receipt, network):
-    mintIDHex = b''
-    if network == "Polygon":
-        mintIDHex = receipt.logs[1].topics[3] if len(receipt.logs) > 1 else b''
-    elif len(receipt.logs) == 1:
-        mintIDHex = receipt.logs[0].topics[3]
-    else:
-        mintIDHex = receipt.logs[2].topics[3] if len(receipt.logs) > 2 else b''
-    
-    # Convert the byte array to an integer
-    if mintIDHex:
-        # Ensure mintIDHex is a bytes object, not a hex string
-        if isinstance(mintIDHex, str):
-            mintIDHex = bytes.fromhex(mintIDHex[2:])  # Remove '0x' prefix and convert
-        mintID = int.from_bytes(mintIDHex, byteorder='big')
-    else:
-        mintID = None
-    return mintID
-
+	mintIDHex = b''
+	if network == "Polygon":
+		mintIDHex = receipt.logs[1].topics[3] if len(receipt.logs) > 1 else b''
+	elif len(receipt.logs) == 1:
+		mintIDHex = receipt.logs[0].topics[3]
+	else:
+		mintIDHex = receipt.logs[2].topics[3] if len(receipt.logs) > 2 else b''
+	
+	# Convert the byte array to an integer
+	if mintIDHex:
+		# Ensure mintIDHex is a bytes object, not a hex string
+		if isinstance(mintIDHex, str):
+			mintIDHex = bytes.fromhex(mintIDHex[2:])  # Remove '0x' prefix and convert
+		mintID = int.from_bytes(mintIDHex, byteorder='big')
+	else:
+		mintID = None
+	return mintID
 
 def load_files():
-    hNFT_addresses = json.load(open('hNFT-addresses.json'))
-    hFT_addresses = json.load(open('hFT-addresses.json'))
-    domains = json.load(open('domains.json'))
-    hNFT_abi = json.load(open('abi/hNFT-abi.json'))
-    hFT_abi = json.load(open('abi/hFT-abi.json'))
-    
-    networks = get_possible_chains()
-    alchemy_url_list = {chain: os.getenv(f'{chain.upper()}_ALCHEMY_URL') for chain in networks}
-    
-    return hNFT_addresses, hFT_addresses, domains, alchemy_url_list, hNFT_abi, hFT_abi
+	hNFT_addresses = json.load(open('hNFT-addresses.json'))
+	hFT_addresses = json.load(open('hFT-addresses.json'))
+	domains = json.load(open('domains.json'))
+	hNFT_abi = json.load(open('abi/hNFT-abi.json'))
+	hFT_abi = json.load(open('abi/hFT-abi.json'))
+	erc20_abi = json.load(open('abi/lifi-erc20-abi.json'))
+	lifi_chains = json.load(open('lifi-chains.json'))
+	
+	networks = get_possible_chains()
+	alchemy_url_list = {chain: os.getenv(f'{chain.upper()}_URL') for chain in networks}
+	
+	return hNFT_addresses, hFT_addresses, domains, alchemy_url_list, hNFT_abi, hFT_abi, erc20_abi, lifi_chains
 
-
+# Initialize web3 with Alchemy provider
+def init_web3(provider_url):
+	return Web3(Web3.HTTPProvider(provider_url))
 
 # Function to read ABI from a local file
 def load_abi(file_path):
 	with open(file_path, 'r') as file:
 		return json.load(file)
+
+
+# Function to randomize selection of chains and account details
+def randomize_transaction_parameters():
+	accounts = get_accounts()
+	num_accounts = len(accounts)
+	chains = get_possible_chains()
+	starting_chain = random.choice(chains)
+	destination_chain = random.choice([chain for chain in chains if chain != starting_chain])
+	
+	# Randomly select an account
+	account = random.choice(accounts)
+	account_address = account['address']
+	private_key = account['private_key']
+	
+	return starting_chain, destination_chain, account_address, private_key
+
+def estimate_gas_limit(web3, from_address, to_address, data=None, value=0):
+    transaction = {
+        'from': from_address,
+        'to': to_address,
+        'value': value,
+        'data': data
+    }
+    gas_limit = web3.eth.estimate_gas(transaction)
+    return gas_limit
+
+def estimate_gas_price(web3):
+    gas_price = web3.eth.gas_price
+    return gas_price
