@@ -7,8 +7,25 @@ from web3 import Web3
 dotenv.load_dotenv()
 
 def get_possible_chains():
-	return ['arbitrum','base', 'optimism', 'polygon_zk']  
-	# return ['arbitrum','base', 'optimism', 'polygon_zk', 'scroll']  
+	return ['arbitrum','base', 'optimism', 'polygon_zk', 'scroll', 'zksync_era']  
+
+def get_chain_key(chain_name):
+	chain_name = chain_name.lower()
+	lifi_chains = json.load(open('lifi-chains.json'))
+	for chain in lifi_chains:
+		if chain['name'].lower() == chain_name:
+			return chain['key']
+		
+def get_chain_id(chain_name):
+	chain_name = chain_name.lower()
+	lifi_chains = json.load(open('lifi-chains.json'))
+	for chain in lifi_chains:
+		if chain['name'].lower() == chain_name:
+			return chain['id']
+		
+def convert_eth_to_wei(amount_eth):
+    return Web3.to_wei(amount_eth, 'ether')
+
 
 def count_accounts():
 	count = 0
@@ -75,7 +92,6 @@ def load_abi(file_path):
 # Function to randomize selection of chains and account details
 def randomize_transaction_parameters():
 	accounts = get_accounts()
-	num_accounts = len(accounts)
 	chains = get_possible_chains()
 	starting_chain = random.choice(chains)
 	destination_chain = random.choice([chain for chain in chains if chain != starting_chain])

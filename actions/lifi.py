@@ -1,17 +1,8 @@
 import requests
-from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
-from utils import load_files, init_web3, estimate_gas_limit, estimate_gas_price
+from utils import load_files, init_web3, estimate_gas_limit, get_chain_key, convert_eth_to_wei
 
 # Load necessary data
-_, _, domains, alchemy_url_list, _, _, erc20_abi, lifi_chains = load_files()
-
-def get_chain_key(chain_name):
-	chain_name = chain_name.lower()
-	# search for the chain name in the lifi_chains array
-	for chain in lifi_chains:
-		if chain['name'].lower() == chain_name:
-			return chain['key']
+_, _, _, alchemy_url_list, _, _, erc20_abi, lifi_chains = load_files()
 
 def get_quote(starting_chain, destination_chain, from_token, to_token, from_amount, from_address):
 	starting_domain = get_chain_key(starting_chain)
@@ -64,6 +55,7 @@ def execute_swap(starting_chain, destination_chain, from_token, to_token, from_a
 	alchemy_url = alchemy_url_list[starting_chain]
 	web3 = init_web3(alchemy_url)	
 	quote = get_quote(starting_chain, destination_chain, from_token, to_token, from_amount, account_address)
+	
 	check_and_set_allowance(web3, account_address, private_key, quote['action']['fromToken']['address'], quote['estimate']['approvalAddress'], from_amount, erc20_abi)
 	
 	nonce = web3.eth.get_transaction_count(account_address)
@@ -74,8 +66,6 @@ def execute_swap(starting_chain, destination_chain, from_token, to_token, from_a
 		'to': quote['transactionRequest']['to'],
 		'value': quote['transactionRequest']['value'], # Convert hex to int
 		'data': quote['transactionRequest']['data'],
-		# 'gas': quote['transactionRequest']['gasLimit'],
-		# 'gas': 21000000,
 		'gas': gasLimit,
 		'gasPrice': quote['transactionRequest']['gasPrice'],
 		'nonce': nonce,
@@ -85,6 +75,12 @@ def execute_swap(starting_chain, destination_chain, from_token, to_token, from_a
 	receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
 	print(f"Transaction hash: {tx_hash.hex()}")
 	print(f"Transaction receipt: {receipt}")
+	return receipt
 
 
+def split_send_eth(starting_chain, destination_chains, from_token, to_token, from_amount, account_address, private_key):
+	split_amount = convert_eth_to_wei(from_amount / len(destination_chains))
 
+	for chain in destination_chains:
+		execute_swap(starting_chain, chain, from_token, to_token, split_amount, account_address, private_key)
+	

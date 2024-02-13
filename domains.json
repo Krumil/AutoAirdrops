@@ -6,5 +6,6 @@
 	"gnosis": 100,
 	"arbitrum": 42161,
 	"base": 8453,
-	"scroll": 534352
+	"scroll": 534352,
+	"zksync_era": 324
 }

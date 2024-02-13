@@ -42,7 +42,7 @@
 	{
 		"key": "era",
 		"chainType": "EVM",
-		"name": "zkSync Era",
+		"name": "zkSync_Era",
 		"coin": "ETH",
 		"id": 324,
 		"mainnet": true
