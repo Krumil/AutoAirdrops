@@ -4,6 +4,7 @@ from utils import load_files, init_web3, estimate_gas_limit, get_chain_key, conv
 # Load necessary data
 _, _, _, alchemy_url_list, _, _, erc20_abi, lifi_chains = load_files()
 
+
 def get_quote(starting_chain, destination_chain, from_token, to_token, from_amount, from_address):
 	starting_domain = get_chain_key(starting_chain)
 	destination_domain = get_chain_key(destination_chain)

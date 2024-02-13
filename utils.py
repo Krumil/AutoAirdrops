@@ -1,8 +1,9 @@
+from web3 import Web3
+import dotenv
 import json
 import os 
-import dotenv
 import random
-from web3 import Web3
+import requests
 
 dotenv.load_dotenv()
 
@@ -24,7 +25,7 @@ def get_chain_id(chain_name):
 			return chain['id']
 		
 def convert_eth_to_wei(amount_eth):
-    return Web3.to_wei(amount_eth, 'ether')
+	return Web3.to_wei(amount_eth, 'ether')
 
 
 def count_accounts():
@@ -123,3 +124,25 @@ def estimate_gas_limit(web3, from_address, to_address, data=None, value=0):
 def estimate_gas_price(web3):
 	gas_price = web3.eth.gas_price
 	return gas_price
+
+def get_token_info(chain, symbol):
+	url = "https://li.quest/v1/token"
+	headers = {"accept": "application/json"}
+	response = requests.get(url, headers=headers, params={"chain": chain, "token": symbol})
+	return response.json()
+
+def get_token_balance(chain_name, account_address, token_symbol):
+	_, _, _, alchemy_url_list, _, _, erc20_abi, _ = load_files()
+
+	alchemy_url = alchemy_url_list.get(chain_name)
+	if not alchemy_url:
+		raise ValueError(f"Alchemy URL for chain {chain_name} not found.")
+	
+	token_info = get_token_info(get_chain_id(chain_name), token_symbol)
+	token_address = token_info['address']
+
+	web3 = init_web3(alchemy_url)
+	token_contract = web3.eth.contract(address=Web3.to_checksum_address(token_address), abi=erc20_abi)
+	balance = token_contract.functions.balanceOf(Web3.to_checksum_address(account_address)).call()
+	return balance
+
