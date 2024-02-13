@@ -11,15 +11,15 @@ def get_possible_chains():
 	# return ['arbitrum','base', 'optimism', 'polygon_zk', 'scroll']  
 
 def count_accounts():
-    count = 0
-    while True:
-        address_key = f'ADDRESS_{count + 1}'
-        private_key = f'PRIVATE_KEY_{count + 1}'
-        if os.getenv(address_key) and os.getenv(private_key):
-            count += 1
-        else:
-            break
-    return count
+	count = 0
+	while True:
+		address_key = f'ADDRESS_{count + 1}'
+		private_key = f'PRIVATE_KEY_{count + 1}'
+		if os.getenv(address_key) and os.getenv(private_key):
+			count += 1
+		else:
+			break
+	return count
 
 def get_accounts():
 	num_accounts = count_accounts()
@@ -88,15 +88,22 @@ def randomize_transaction_parameters():
 	return starting_chain, destination_chain, account_address, private_key
 
 def estimate_gas_limit(web3, from_address, to_address, data=None, value=0):
-    transaction = {
-        'from': from_address,
-        'to': to_address,
-        'value': value,
-        'data': data
-    }
-    gas_limit = web3.eth.estimate_gas(transaction)
-    return gas_limit
+	# check if value is hex and convert to int
+	if isinstance(value, str):
+		if value.startswith('0x'):
+			value = int(value, 16)
+		else:
+			value = int(value)
+
+	transaction = {
+		'from': from_address,
+		'to': to_address,
+		'value': value,
+		'data': data
+	}
+	gas_limit = web3.eth.estimate_gas(transaction)
+	return gas_limit
 
 def estimate_gas_price(web3):
-    gas_price = web3.eth.gas_price
-    return gas_price
+	gas_price = web3.eth.gas_price
+	return gas_price

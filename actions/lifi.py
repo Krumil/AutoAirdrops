@@ -68,7 +68,6 @@ def execute_swap(starting_chain, destination_chain, from_token, to_token, from_a
 	
 	nonce = web3.eth.get_transaction_count(account_address)
 
-	gasPrice = estimate_gas_price(web3)
 	gasLimit = estimate_gas_limit(web3, account_address, quote['transactionRequest']['to'], quote['transactionRequest']['data'], quote['transactionRequest']['value'])
 	tx = {
 		'from': account_address,
