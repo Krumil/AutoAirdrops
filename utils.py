@@ -27,6 +27,9 @@ def get_chain_id(chain_name):
 def convert_eth_to_wei(amount_eth):
 	return Web3.to_wei(amount_eth, 'ether')
 
+def convert_wei_to_eth(amount_wei):
+	return Web3.from_wei(amount_wei, 'ether')
+
 
 def count_accounts():
 	count = 0
@@ -104,22 +107,22 @@ def randomize_transaction_parameters():
 	
 	return starting_chain, destination_chain, account_address, private_key
 
-def estimate_gas_limit(web3, from_address, to_address, data=None, value=0):
-	# check if value is hex and convert to int
-	if isinstance(value, str):
-		if value.startswith('0x'):
-			value = int(value, 16)
-		else:
-			value = int(value)
+# def estimate_gas_limit(web3, from_address, to_address, data=None, value=0):
+# 	# check if value is hex and convert to int
+# 	if isinstance(value, str):
+# 		if value.startswith('0x'):
+# 			value = int(value, 16)
+# 		else:
+# 			value = int(value)
 
-	transaction = {
-		'from': from_address,
-		'to': to_address,
-		'value': value,
-		'data': data
-	}
-	gas_limit = web3.eth.estimate_gas(transaction)
-	return gas_limit
+# 	transaction = {
+# 		'from': from_address,
+# 		'to': to_address,
+# 		'value': value,
+# 		'data': data
+# 	}
+# 	gas_limit = web3.eth.estimate_gas(transaction)
+# 	return gas_limit
 
 def estimate_gas_price(web3):
 	gas_price = web3.eth.gas_price
@@ -138,10 +141,15 @@ def get_token_balance(chain_name, account_address, token_symbol):
 	if not alchemy_url:
 		raise ValueError(f"Alchemy URL for chain {chain_name} not found.")
 	
+
+	web3 = init_web3(alchemy_url)
+	if token_symbol == 'ETH':
+		balance = web3.eth.get_balance(Web3.to_checksum_address(account_address))
+		return balance
+	
 	token_info = get_token_info(get_chain_id(chain_name), token_symbol)
 	token_address = token_info['address']
 
-	web3 = init_web3(alchemy_url)
 	token_contract = web3.eth.contract(address=Web3.to_checksum_address(token_address), abi=erc20_abi)
 	balance = token_contract.functions.balanceOf(Web3.to_checksum_address(account_address)).call()
 	return balance

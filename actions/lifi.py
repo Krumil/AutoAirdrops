@@ -1,5 +1,6 @@
 import requests
-from utils import load_files, init_web3, estimate_gas_limit, get_chain_key, get_chain_id, convert_eth_to_wei, get_token_balance
+import time
+from utils import load_files, init_web3, get_chain_key, get_chain_id, convert_eth_to_wei, get_token_balance
 
 # Load necessary data
 _, _, _, alchemy_url_list, _, _, erc20_abi, lifi_chains = load_files()
@@ -42,9 +43,10 @@ def check_and_set_allowance(web3, chain, account_address, private_key, token_add
 	current_allowance = contract.functions.allowance(account_address, approval_address).call()
 
 	if current_allowance < amount:
+		amount_remaining = amount - current_allowance
 		chain_id = get_chain_id(chain)
 		nonce = web3.eth.get_transaction_count(account_address)
-		approve_tx = contract.functions.approve(approval_address, amount).build_transaction({
+		approve_tx = contract.functions.approve(approval_address, amount_remaining).build_transaction({
 			'from': account_address,
 			'chainId': chain_id,
 			'nonce': nonce,
@@ -57,28 +59,29 @@ def execute_swap(starting_chain, destination_chain, from_token, to_token, from_a
 	alchemy_url = alchemy_url_list[starting_chain]
 	web3 = init_web3(alchemy_url)	
 	quote = get_quote(starting_chain, destination_chain, from_token, to_token, from_amount, account_address)
-	
 	check_and_set_allowance(web3, starting_chain, account_address, private_key, quote['action']['fromToken']['address'], quote['estimate']['approvalAddress'], from_amount, erc20_abi)
 	
 	nonce = web3.eth.get_transaction_count(account_address)
 
-	gasLimit = estimate_gas_limit(web3, account_address, quote['transactionRequest']['to'], quote['transactionRequest']['data'], quote['transactionRequest']['value'])
 	tx = {
-		'from': account_address,
+		'from': quote['transactionRequest']['from'],
 		'to': quote['transactionRequest']['to'],
 		'value': quote['transactionRequest']['value'], # Convert hex to int
 		'data': quote['transactionRequest']['data'],
-		'gas': gasLimit,
+		'gas': quote['transactionRequest']['gasLimit'],
 		'gasPrice': quote['transactionRequest']['gasPrice'],
 		'nonce': nonce,
+		'chainId': get_chain_id(starting_chain),
 	}
 	signed_tx = web3.eth.account.sign_transaction(tx, private_key)
 	tx_hash = web3.eth.send_raw_transaction(signed_tx.rawTransaction)
 	receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
 	print(f"Transaction hash: {tx_hash.hex()}")
-	print(f"Transaction receipt: {receipt}")
-	return receipt
-
+	result = wait_for_transaction_done(tx_hash.hex())
+	if result:
+		return receipt
+	else:
+		raise Exception("Transaction failed: " + tx_hash.hex() + ". Swapping " + from_token + " to " + to_token + " on " + starting_chain + " to " + destination_chain + " failed.")
 
 def split_send_eth(starting_chain, destination_chains, from_token, to_token, from_amount, account_address, private_key):
 	split_amount = convert_eth_to_wei(from_amount / len(destination_chains))
@@ -94,5 +97,31 @@ def execute_swap_ETH_to_USDC(chain, account_address, private_key, amount):
 
 def execute_swap_all_USDC_to_ETH(chain, account_address, private_key) :
 	amount = get_token_balance(chain, account_address, 'USDC')
+	if amount == 0:
+		return
 	receipt = execute_swap(chain, chain, 'USDC', 'ETH', amount, account_address, private_key)
 	return receipt
+
+def get_status(tx_hash):
+    url = 'https://li.quest/v1/status'
+    params = {'txHash': tx_hash}
+    response = requests.get(url, params=params)
+    return response.json()
+
+def wait_for_transaction_done(tx_hash):
+    while True:
+        try:
+            status_result = get_status(tx_hash)
+            if status_result['status'] == 'DONE':
+                print("Transaction completed successfully.")
+                return True
+            elif status_result['status'] == 'FAILED':
+                print("Transaction failed.")
+                return False
+            else:
+                print(f"Transaction status: {status_result['status']}. Waiting for completion...")
+                time.sleep(3)  # Adjusted to wait for 3 seconds as per the comment
+        except Exception as e:
+            print(f"An error occurred: {e}. Retrying...")
+            time.sleep(3)  # wait for 3 seconds before retrying
+
